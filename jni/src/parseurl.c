@@ -122,7 +122,6 @@ parsehost:
 		} else {
 			*port = p2;
 		}
-        RTMP_Log(RTMP_LOGDEBUG, "Parsed port    : %u", p2);
 	}
 
 	if(!slash) {
@@ -138,14 +137,12 @@ parsehost:
 	 * application = app[/appinstance]
 	 */
 
-	char *slash2, *slash3 = NULL, *slash4 = NULL;
+	char *slash2, *slash3 = NULL;
 	int applen, appnamelen;
 
 	slash2 = strchr(p, '/');
 	if(slash2)
 		slash3 = strchr(slash2+1, '/');
-	if(slash3)
-		slash4 = strchr(slash3+1, '/');
 
 	applen = end-p; /* ondemand, pass all parameters as app */
 	appnamelen = applen; /* ondemand length */
@@ -159,9 +156,7 @@ parsehost:
                 appnamelen = 8;
         }
 	else { /* app!=ondemand, so app is app[/appinstance] */
-		if(slash4)
-			appnamelen = slash4-p;
-		else if(slash3)
+		if(slash3)
 			appnamelen = slash3-p;
 		else if(slash2)
 			appnamelen = slash2-p;
