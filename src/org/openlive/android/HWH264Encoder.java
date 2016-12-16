@@ -104,8 +104,6 @@ public class HWH264Encoder implements Runnable {
 				mStManager.drawImage();
 				mInputSurface.setPresentationTime(st.getTimestamp());
 				mInputSurface.swapBuffers();
-				if (VERBOSE)
-					Log.d(TAG, "sending frame to encoder");
 			}
 			// send end-of-stream to encoder, and drain remaining output
 			drainEncoder(true);
@@ -315,8 +313,6 @@ public class HWH264Encoder implements Runnable {
 	 */
 	private void drainEncoder(boolean endOfStream) {
 		final int TIMEOUT_USEC = 1;
-		if (VERBOSE)
-			Log.d(TAG, "drainEncoder(" + endOfStream + ")");
 
 		if (endOfStream) {
 			if (VERBOSE)
@@ -361,8 +357,7 @@ public class HWH264Encoder implements Runnable {
 					if (mBufferInfo.size != 0) {
 						byte[] outData = new byte[mBufferInfo.size];
 						encodedData.get(outData);
-						RtmpClient.writeVideo(outData, outData.length,
-								presentationTimeUs2ts(System.currentTimeMillis()));
+						RtmpClient.writeVideo(outData, outData.length);
 						baseTime = System.currentTimeMillis();
 					}
 
@@ -381,10 +376,10 @@ public class HWH264Encoder implements Runnable {
 					byte[] outData = new byte[mBufferInfo.size];
 					encodedData.get(outData);
 
-					RtmpClient.writeVideo(outData, outData.length, presentationTimeUs2ts(System.currentTimeMillis()));
+					RtmpClient.writeVideo(outData, outData.length);
 					baseTime = System.currentTimeMillis();
 					if (VERBOSE)
-						Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer" + " ts:" + ts);
+						Log.d(TAG, mBufferInfo.size + " bytes written");
 				}
 
 				mEncoder.releaseOutputBuffer(encoderStatus, false);
@@ -404,26 +399,6 @@ public class HWH264Encoder implements Runnable {
 
 	private long baseTime = 0;
 	private int ts;
-
-	int presentationTimeUs2ts(long time) {
-
-		if (baseTime == 0) {
-			baseTime = time;
-			return 0;
-		}
-		ts += (int) (time - baseTime);
-		return ts;
-
-		// 16777215
-		// if (time > 0) {
-		// // Log.d(TAG, "time:" + time +" sys:" +System.currentTimeMillis());
-		// String tmp = String.valueOf(time);
-		// int len = tmp.length();
-		// String tmp1 = tmp.substring(0, len - 3);
-		// return Integer.parseInt(tmp1);
-		// }
-		// return 0;
-	}
 
 	static boolean isH264iFrame(byte[] paket) {
 		int RTPHeaderBytes = 0;
@@ -674,8 +649,6 @@ public class HWH264Encoder implements Runnable {
 
 		@Override
 		public void onFrameAvailable(SurfaceTexture st) {
-			if (VERBOSE)
-				Log.d(TAG, "new frame available");
 			synchronized (mFrameSyncObject) {
 				if (mFrameAvailable) {
 					throw new RuntimeException("mFrameAvailable already set, frame could be dropped");

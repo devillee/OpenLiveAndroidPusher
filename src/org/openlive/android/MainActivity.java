@@ -15,9 +15,9 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		
-		RtmpClient.connect("rtmp://112.74.98.168:1935/hls/test", true, 1920, 1080);
-		
+
+		RtmpClient.connect("rtmp://112.74.98.168:1935/hls/test", true, 1280, 720);
+
 		videoEncoder = new HWH264Encoder();
 		videoEncoder.startEncoder();
 
@@ -49,6 +49,9 @@ public class MainActivity extends Activity {
 		super.onDestroy();
 		if (videoEncoder != null) {
 			videoEncoder.stopEncoder();
+		}
+		if (audioEncoder != null) {
+			audioEncoder.stopEncoder();
 		}
 	}
 }

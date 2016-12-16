@@ -82,13 +82,12 @@ public class HWAACEncoder implements Runnable {
 	private void initAudioCodec() {
 		bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
 		samples = new byte[bufferSize];
-		Log.i(TAG, "bufferSize:" + bufferSize);
 		MediaFormat audioFormat = new MediaFormat();
 		audioFormat.setString(MediaFormat.KEY_MIME, MIME_TYPE);
 		audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
-		audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
+		audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, SAMPLE_RATE);
 		audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
-		audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
+		audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE);
 		audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384);
 
 		mAudioEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
@@ -145,9 +144,8 @@ public class HWAACEncoder implements Runnable {
 				ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
 				byte[] outData = new byte[bufferInfo.size];
 				outputBuffer.get(outData);
-				Log.e(TAG,
-						outData.length + " bytes written" + " ts:" + presentationTimeUs2ts(System.currentTimeMillis()));
-				RtmpClient.writeAudio(outData, outData.length, presentationTimeUs2ts(System.currentTimeMillis()));
+				Log.e(TAG, outData.length + " bytes written");
+				RtmpClient.writeAudio(outData, outData.length);
 				baseTime = System.currentTimeMillis();
 				mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
 				outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);

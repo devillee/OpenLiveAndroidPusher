@@ -22,18 +22,18 @@ public class RtmpClient {
 		connect = open(url, isPublishMode, width, height);
 	}
 
-	public static int writeVideo(byte[] data, int size, int ts) {
+	public static int writeVideo(byte[] data, int size) {
 		synchronized (RtmpClient.class) {
 			if (connect > 0)
-				return write(data, size, TYPE_VIDEO, ts);
+				return write(data, size, TYPE_VIDEO, 0);
 		}
 		return -1;
 	}
 
-	public static int writeAudio(byte[] data, int size, int ts) {
+	public static int writeAudio(byte[] data, int size) {
 		synchronized (RtmpClient.class) {
 			if (connect > 0)
-				return write(data, size, TYPE_AUDIO, ts);
+				return write(data, size, TYPE_AUDIO, 0);
 		}
 		return -1;
 	}

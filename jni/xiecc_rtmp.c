@@ -38,6 +38,8 @@ static uint64_t g_time_begin;
 bool video_config_ok = false;
 bool audio_config_ok = false;
 
+uint32_t start_time;
+
 void flv_file_open(const char *filename) {
 	if (NULL == filename) {
 		return;
@@ -207,7 +209,7 @@ int rtmp_open_for_write(const char *url, uint32_t video_width,
 		send_buffer[offset++] = 0x00; //stream id 0
 
 		memcpy(send_buffer + offset, buffer, body_len);
-
+		start_time = RTMP_GetTime();
 		return RTMP_Write(rtmp, send_buffer, output_len);
 	}
 	return -1;
@@ -245,7 +247,8 @@ int rtmp_read_date(uint8_t* data, int size) {
 int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		uint32_t abs_ts) {
 	int val = 0;
-	uint32_t audio_ts = (uint32_t) dts_us;
+	//uint32_t audio_ts = (uint32_t) dts_us;
+	uint32_t audio_ts =  RTMP_GetTime() - start_time;
 	uint32_t offset;
 	uint32_t body_len;
 	uint32_t output_len;
@@ -414,9 +417,10 @@ int rtmp_sender_write_video_frame(uint8_t *data, int size, uint64_t dts_us,
 	buf = data;
 	buf_offset = data;
 	total = size;
-	ts = (uint32_t) dts_us;
 
-	//ts = RTMP_GetTime() - start_time;
+	//ts = (uint32_t) dts_us;
+
+	ts = RTMP_GetTime() - start_time;
 	offset = 0;
 
 	nal = get_nal(&nal_len, &buf_offset, buf, total);
