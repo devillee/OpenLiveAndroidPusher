@@ -16,7 +16,7 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		RtmpClient.connect("rtmp://112.74.98.168:1935/hls/test", true, 1280, 720);
+		RtmpClient.connect("rtmp://192.168.1.100:1935/hls/test", true, 1280, 720);
 
 		videoEncoder = new HWH264Encoder();
 		videoEncoder.startEncoder();
