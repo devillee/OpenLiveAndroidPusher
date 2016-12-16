@@ -2,9 +2,12 @@ package org.openlive.android;
 
 import java.nio.ByteBuffer;
 
+import org.openlive.android.rtmp.RtmpClient;
+
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaRecorder;
 import android.os.SystemClock;
@@ -22,7 +25,7 @@ public class HWAACEncoder implements Runnable {
 
 	private AudioRecord audioRecoder;
 	private int bufferSize;
-	private MediaCodec mMediaCodec;
+	private MediaCodec mAudioEncoder;
 	private boolean isRun = false;
 	private int bufferRead;
 	private byte[] samples;
@@ -36,10 +39,10 @@ public class HWAACEncoder implements Runnable {
 
 	public void stopEncoder() {
 		isRun = false;
-		if (mMediaCodec != null) {
-			mMediaCodec.stop();
-			mMediaCodec.release();
-			mMediaCodec = null;
+		if (mAudioEncoder != null) {
+			mAudioEncoder.stop();
+			mAudioEncoder.release();
+			mAudioEncoder = null;
 		}
 		if (audioRecoder != null) {
 			audioRecoder.stop();
@@ -69,8 +72,8 @@ public class HWAACEncoder implements Runnable {
 					Log.e(TAG, "Read error");
 				}
 				if (bufferRead > 0) {
-					Log.e(TAG, "bufferRead len:" + bufferRead);
-					encodeAudioFrame(samples);
+					// Log.e(TAG, "bufferRead len:" + bufferRead);
+					encodeAndSendAudioFrame(samples);
 				}
 			}
 		}
@@ -79,56 +82,114 @@ public class HWAACEncoder implements Runnable {
 	private void initAudioCodec() {
 		bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
 		samples = new byte[bufferSize];
+		Log.i(TAG, "bufferSize:" + bufferSize);
+		MediaFormat audioFormat = new MediaFormat();
+		audioFormat.setString(MediaFormat.KEY_MIME, MIME_TYPE);
+		audioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
+		audioFormat.setInteger(MediaFormat.KEY_SAMPLE_RATE, 44100);
+		audioFormat.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
+		audioFormat.setInteger(MediaFormat.KEY_BIT_RATE, 128000);
+		audioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384);
 
-		MediaFormat format = new MediaFormat();
-		format.setInteger(MediaFormat.KEY_BIT_RATE, BIT_RATE);
-		format.setInteger(MediaFormat.KEY_CHANNEL_COUNT, 1);
-		format.setInteger(MediaFormat.KEY_SAMPLE_RATE, SAMPLE_RATE);
-		format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, bufferSize);
-
-		mMediaCodec = MediaCodec.createEncoderByType(MIME_TYPE);
-		mMediaCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-		mMediaCodec.start();
+		mAudioEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
+		mAudioEncoder.configure(audioFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+		mAudioEncoder.start();
 
 		audioRecoder = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT,
 				bufferSize);
 		audioRecoder.startRecording();
 	}
 
-	private void encodeAudioFrame(byte[] data) {
-		ByteBuffer[] inBuffers = mMediaCodec.getInputBuffers();
-		ByteBuffer[] outBuffers = mMediaCodec.getOutputBuffers();
-		long timeStamp = SystemClock.uptimeMillis();
+	private void encodeAndSendAudioFrame(byte[] data) {
+		try {
+			ByteBuffer[] inputBuffers = mAudioEncoder.getInputBuffers();
+			ByteBuffer[] outputBuffers = mAudioEncoder.getOutputBuffers();
+			int inputBufferIndex = mAudioEncoder.dequeueInputBuffer(-1);
+			if (inputBufferIndex >= 0) {
+				ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+				inputBuffer.clear();
+				inputBuffer.put(data);
+				mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, data.length, 0, 0);
+			}
+			MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+			int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
+			// // trying to add a ADTS
+			// while (outputBufferIndex >= 0) {
+			// int outBitsSize = bufferInfo.size;
+			// int outPacketSize = outBitsSize + 7; // 7 is ADTS size
+			// ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
+			//
+			// outputBuffer.position(bufferInfo.offset);
+			// outputBuffer.limit(bufferInfo.offset + outBitsSize);
+			//
+			// byte[] outData = new byte[outPacketSize];
+			// addADTStoPacket(outData, outPacketSize);
+			//
+			// outputBuffer.get(outData, 7, outBitsSize);
+			// outputBuffer.position(bufferInfo.offset);
+			//
+			// Log.e(TAG, outData.length + " bytes written");
+			// RtmpClient.write(outData, outData.length, RtmpClient.TYPE_AUDIO,
+			// presentationTimeUs2ts(System.currentTimeMillis()));
+			//
+			// Log.e("AudioEncoder", outData.length + " bytes written");
+			//
+			// mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+			// outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo,
+			// 0);
+			//
+			// }
 
-		int inBufferIndex = mMediaCodec.dequeueInputBuffer(-1);
-		if (inBufferIndex >= 0) {
-			ByteBuffer inputBuffer = inBuffers[inBufferIndex];
-			inputBuffer.clear();
-			inputBuffer.put(data, 0, data.length);
-			mMediaCodec.queueInputBuffer(inBufferIndex, 0, data.length, timeStamp, 0);
-		}
-
-		int i = 0;
-		byte[] buffers = new byte[1024];
-		MediaCodec.BufferInfo mBufferInfo = new MediaCodec.BufferInfo();
-		int outBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 0);
-		while (outBufferIndex >= 0) {
-			ByteBuffer outputBuffer = outBuffers[outBufferIndex];
-			byte[] outData = new byte[mBufferInfo.size];
-			outputBuffer.get(outData);
-
-			System.arraycopy(outData, 0, buffers, i, outData.length);
-			i += outData.length;
-
-			mMediaCodec.releaseOutputBuffer(outBufferIndex, false);
-			outBufferIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 0);
-		}
-
-		if (i > 0) {
-			byte[] sendData = new byte[i];
-			System.arraycopy(buffers, 0, sendData, 0, i);
-			Log.i(TAG, "sendData len:" + sendData.length);
+			// Without ADTS header
+			while (outputBufferIndex >= 0) {
+				ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
+				byte[] outData = new byte[bufferInfo.size];
+				outputBuffer.get(outData);
+				Log.e(TAG,
+						outData.length + " bytes written" + " ts:" + presentationTimeUs2ts(System.currentTimeMillis()));
+				RtmpClient.writeAudio(outData, outData.length, presentationTimeUs2ts(System.currentTimeMillis()));
+				baseTime = System.currentTimeMillis();
+				mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
+				outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
+			}
+		} catch (Throwable t) {
+			t.printStackTrace();
 		}
 
 	}
+
+	/**
+	 * Add ADTS header at the beginning of each and every AAC packet. This is
+	 * needed as MediaCodec encoder generates a packet of raw AAC data.
+	 *
+	 * Note the packetLen must count in the ADTS header itself.
+	 **/
+	private void addADTStoPacket(byte[] packet, int packetLen) {
+		int profile = 2; // AAC LC
+		// 39=MediaCodecInfo.CodecProfileLevel.AACObjectELD;
+		int freqIdx = 4; // 44.1KHz
+		int chanCfg = 1; // CPE
+		// fill in ADTS data
+		packet[0] = (byte) 0xFF;
+		packet[1] = (byte) 0xF9;
+		packet[2] = (byte) (((profile - 1) << 6) + (freqIdx << 2) + (chanCfg >> 2));
+		packet[3] = (byte) (((chanCfg & 3) << 6) + (packetLen >> 11));
+		packet[4] = (byte) ((packetLen & 0x7FF) >> 3);
+		packet[5] = (byte) (((packetLen & 7) << 5) + 0x1F);
+		packet[6] = (byte) 0xFC;
+	}
+
+	private long baseTime = 0;
+	private int ts;
+
+	int presentationTimeUs2ts(long time) {
+		// 16777215
+		if (baseTime == 0) {
+			baseTime = time;
+			return 0;
+		}
+		ts += (int) (time - baseTime);
+		return ts;
+	}
+
 }

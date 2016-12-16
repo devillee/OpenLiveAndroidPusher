@@ -244,7 +244,6 @@ int rtmp_read_date(uint8_t* data, int size) {
 // @param [in] abs_ts     : indicate whether you'd like to use absolute time stamp
 int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		uint32_t abs_ts) {
-
 	int val = 0;
 	uint32_t audio_ts = (uint32_t) dts_us;
 	uint32_t offset;
@@ -254,8 +253,8 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 
 	//Audio OUTPUT
 	offset = 0;
-
-	if (audio_config_ok == false) {
+//	if (audio_config_ok == false) {
+	if (size == 2) {
 		// first packet is two bytes AudioSpecificConfig
 
 		//rtmp_xiecc->config = gen_config(audio_frame);
@@ -263,7 +262,7 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output_len = body_len + FLV_TAG_HEAD_LEN + FLV_PRE_TAG_LEN;
 		output = malloc(output_len);
 		// flv tag header
-		output[offset++] = 0x08; //tagtype audio
+		output[offset++] = 0x08; //tag type audio
 		output[offset++] = (uint8_t)(body_len >> 16); //data len
 		output[offset++] = (uint8_t)(body_len >> 8); //data len
 		output[offset++] = (uint8_t)(body_len); //data len
@@ -291,10 +290,6 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = (uint8_t)(fff >> 16); //data len
 		output[offset++] = (uint8_t)(fff >> 8); //data len
 		output[offset++] = (uint8_t)(fff); //data len
-
-		if (g_file_handle) {
-			fwrite(output, output_len, 1, g_file_handle);
-		}
 		val = RTMP_Write(rtmp, output, output_len);
 		free(output);
 		//rtmp_xiecc->audio_config_ok = 1;
@@ -315,7 +310,6 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = abs_ts; //stream id 0
 		output[offset++] = 0x00; //stream id 0
 		output[offset++] = 0x00; //stream id 0
-
 		//flv AudioTagHeader
 		output[offset++] = gen_audio_tag_header(); // sound format aac
 		output[offset++] = 0x01; //aac raw data
@@ -323,7 +317,6 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		//flv VideoTagBody --raw aac data
 		memcpy(output + offset, data, size); // data + AAC_ADTS_HEADER_SIZE -> data,
 		// (adts_len - AAC_ADTS_HEADER_SIZE) -> size
-
 		//previous tag size
 		uint32_t fff = body_len + FLV_TAG_HEAD_LEN;
 		offset += size; // (adts_len - AAC_ADTS_HEADER_SIZE);
@@ -331,10 +324,6 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = (uint8_t)(fff >> 16); //data len
 		output[offset++] = (uint8_t)(fff >> 8); //data len
 		output[offset++] = (uint8_t)(fff); //data len
-
-		if (g_file_handle) {
-			fwrite(output, output_len, 1, g_file_handle);
-		}
 		val = RTMP_Write(rtmp, output, output_len);
 		free(output);
 	}

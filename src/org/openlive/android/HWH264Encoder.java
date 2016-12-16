@@ -95,7 +95,6 @@ public class HWH264Encoder implements Runnable {
 			mInputSurface.makeCurrent();
 			prepareSurfaceTexture();
 			mCamera.startPreview();
-			RtmpClient.open("rtmp://112.74.98.168:1935/hls/test", true, 1920, 1080);
 			SurfaceTexture st = mStManager.getSurfaceTexture();
 
 			while (isStart) {
@@ -362,8 +361,9 @@ public class HWH264Encoder implements Runnable {
 					if (mBufferInfo.size != 0) {
 						byte[] outData = new byte[mBufferInfo.size];
 						encodedData.get(outData);
-						RtmpClient.write(outData, outData.length, RtmpClient.TYPE_VIDEO,
-								presentationTimeUs2ts(mBufferInfo.presentationTimeUs));
+						RtmpClient.writeVideo(outData, outData.length,
+								presentationTimeUs2ts(System.currentTimeMillis()));
+						baseTime = System.currentTimeMillis();
 					}
 
 					if (VERBOSE)
@@ -381,12 +381,10 @@ public class HWH264Encoder implements Runnable {
 					byte[] outData = new byte[mBufferInfo.size];
 					encodedData.get(outData);
 
-					int ret = RtmpClient.write(outData, outData.length, RtmpClient.TYPE_VIDEO,
-							presentationTimeUs2ts(mBufferInfo.presentationTimeUs));
-					Log.i("spsppd", mBufferInfo.presentationTimeUs + " "
-							+ presentationTimeUs2ts(mBufferInfo.presentationTimeUs));
+					RtmpClient.writeVideo(outData, outData.length, presentationTimeUs2ts(System.currentTimeMillis()));
+					baseTime = System.currentTimeMillis();
 					if (VERBOSE)
-						Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer" + " ret:" + ret);
+						Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer" + " ts:" + ts);
 				}
 
 				mEncoder.releaseOutputBuffer(encoderStatus, false);
@@ -404,14 +402,27 @@ public class HWH264Encoder implements Runnable {
 		}
 	}
 
-	static int presentationTimeUs2ts(long time) {
-		if (time > 0) {
-			String tmp = String.valueOf(time);
-			int len = tmp.length();
-			String tmp1 = tmp.substring(0, len - 3);
-			return Integer.parseInt(tmp1);
+	private long baseTime = 0;
+	private int ts;
+
+	int presentationTimeUs2ts(long time) {
+
+		if (baseTime == 0) {
+			baseTime = time;
+			return 0;
 		}
-		return 0;
+		ts += (int) (time - baseTime);
+		return ts;
+
+		// 16777215
+		// if (time > 0) {
+		// // Log.d(TAG, "time:" + time +" sys:" +System.currentTimeMillis());
+		// String tmp = String.valueOf(time);
+		// int len = tmp.length();
+		// String tmp1 = tmp.substring(0, len - 3);
+		// return Integer.parseInt(tmp1);
+		// }
+		// return 0;
 	}
 
 	static boolean isH264iFrame(byte[] paket) {
