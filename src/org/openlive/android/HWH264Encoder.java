@@ -21,7 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
-import org.openlive.android.rtmp.RtmpClient;
+import org.openlive.rtmp.RtmpClient;
 
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -115,10 +115,13 @@ public class HWH264Encoder implements Runnable {
 		}
 	}
 
+	private long mPresentTimeUs;
+
 	public void startEncoder() {
 		isStart = true;
 		thread = new Thread(this);
 		thread.start();
+		mPresentTimeUs = System.nanoTime() / 1000;
 	}
 
 	public void stopEncoder() {
@@ -349,16 +352,18 @@ public class HWH264Encoder implements Runnable {
 					throw new RuntimeException("encoderOutputBuffer " + encoderStatus + " was null");
 				}
 
+				RtmpClient.getInstance().publishVideoSample(encodedData, mBufferInfo);
+
 				if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
 					// The codec config data was pulled out and fed to the muxer
 					// when we got
 					// the INFO_OUTPUT_FORMAT_CHANGED status. Ignore it.
 
 					if (mBufferInfo.size != 0) {
-						byte[] outData = new byte[mBufferInfo.size];
-						encodedData.get(outData);
-						RtmpClient.writeVideo(outData, outData.length);
-						baseTime = System.currentTimeMillis();
+						// encodedData.get(outData);
+						// MainActivity.rtmpClient.writeSample(0x01,
+						// encodedData, mBufferInfo);
+						// RtmpClient.writeVideo(outData, outData.length);
 					}
 
 					if (VERBOSE)
@@ -370,16 +375,11 @@ public class HWH264Encoder implements Runnable {
 
 					// adjust the ByteBuffer values to match BufferInfo (not
 					// needed?)
-					// encodedData.position(mBufferInfo.offset);
-					// encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
+					encodedData.position(mBufferInfo.offset);
+					encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
 
-					byte[] outData = new byte[mBufferInfo.size];
-					encodedData.get(outData);
-
-					RtmpClient.writeVideo(outData, outData.length);
-					baseTime = System.currentTimeMillis();
-					if (VERBOSE){
-						//Log.d(TAG, mBufferInfo.size + " bytes written");
+					if (VERBOSE) {
+						// Log.d(TAG, mBufferInfo.size + " bytes written");
 					}
 				}
 
@@ -397,9 +397,6 @@ public class HWH264Encoder implements Runnable {
 			}
 		}
 	}
-
-	private long baseTime = 0;
-	private int ts;
 
 	static boolean isH264iFrame(byte[] paket) {
 		int RTPHeaderBytes = 0;

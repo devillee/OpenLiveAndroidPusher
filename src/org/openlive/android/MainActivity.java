@@ -1,13 +1,20 @@
 package org.openlive.android;
 
-import org.openlive.android.rtmp.RtmpClient;
+import java.io.IOException;
+import java.net.SocketException;
+
+import org.openlive.rtmp.RtmpClient;
+
+import com.github.faucamp.simplertmp.RtmpHandler;
+import com.github.faucamp.simplertmp.RtmpHandler.RtmpListener;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements RtmpListener {
 	private HWH264Encoder videoEncoder;
 	private HWAACEncoder audioEncoder;
 
@@ -16,7 +23,9 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		RtmpClient.connect("rtmp://112.74.98.168:1935/hls/test", true, 1280, 720);
+		RtmpClient.getInstance().setVideoResolution(1280, 720);
+		RtmpClient.getInstance().setRtmpHandler(new RtmpHandler(this));
+		RtmpClient.getInstance().startPublish("rtmp://112.74.98.168:1935/hls/test");
 
 		videoEncoder = new HWH264Encoder();
 		videoEncoder.startEncoder();
@@ -53,5 +62,69 @@ public class MainActivity extends Activity {
 		if (audioEncoder != null) {
 			audioEncoder.stopEncoder();
 		}
+	}
+
+	@Override
+	public void onRtmpConnecting(String msg) {
+		Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+	}
+
+	@Override
+	public void onRtmpConnected(String msg) {
+		Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+	}
+
+	@Override
+	public void onRtmpVideoStreaming() {
+
+	}
+
+	@Override
+	public void onRtmpAudioStreaming() {
+	}
+
+	@Override
+	public void onRtmpStopped() {
+		Toast.makeText(getApplicationContext(), "onRtmpStopped", Toast.LENGTH_SHORT).show();
+	}
+
+	@Override
+	public void onRtmpDisconnected() {
+		Toast.makeText(getApplicationContext(), "onRtmpDisconnected", Toast.LENGTH_SHORT).show();
+	}
+
+	@Override
+	public void onRtmpVideoFpsChanged(double fps) {
+
+	}
+
+	@Override
+	public void onRtmpVideoBitrateChanged(double bitrate) {
+
+	}
+
+	@Override
+	public void onRtmpAudioBitrateChanged(double bitrate) {
+
+	}
+
+	@Override
+	public void onRtmpSocketException(SocketException e) {
+
+	}
+
+	@Override
+	public void onRtmpIOException(IOException e) {
+
+	}
+
+	@Override
+	public void onRtmpIllegalArgumentException(IllegalArgumentException e) {
+
+	}
+
+	@Override
+	public void onRtmpIllegalStateException(IllegalStateException e) {
+
 	}
 }

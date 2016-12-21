@@ -2,7 +2,7 @@ package org.openlive.android;
 
 import java.nio.ByteBuffer;
 
-import org.openlive.android.rtmp.RtmpClient;
+import org.openlive.rtmp.RtmpClient;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -10,7 +10,6 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaRecorder;
-import android.os.SystemClock;
 import android.util.Log;
 
 public class HWAACEncoder implements Runnable {
@@ -110,8 +109,10 @@ public class HWAACEncoder implements Runnable {
 				inputBuffer.put(data);
 				mAudioEncoder.queueInputBuffer(inputBufferIndex, 0, data.length, 0, 0);
 			}
+
 			MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
 			int outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
+
 			// // trying to add a ADTS
 			// while (outputBufferIndex >= 0) {
 			// int outBitsSize = bufferInfo.size;
@@ -142,11 +143,8 @@ public class HWAACEncoder implements Runnable {
 			// Without ADTS header
 			while (outputBufferIndex >= 0) {
 				ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
-				byte[] outData = new byte[bufferInfo.size];
-				outputBuffer.get(outData);
-				//Log.e(TAG, outData.length + " bytes written");
-				RtmpClient.writeAudio(outData, outData.length);
-				baseTime = System.currentTimeMillis();
+				RtmpClient.getInstance().publishAudioSample(outputBuffer, bufferInfo);
+
 				mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
 				outputBufferIndex = mAudioEncoder.dequeueOutputBuffer(bufferInfo, 0);
 			}
