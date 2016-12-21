@@ -9,6 +9,7 @@ LOCAL_SRC_FILES := \
 	src/parseurl.c \
 	src/rtmp.c \
 	xiecc_rtmp.c \
+
 LOCAL_SRC_FILES += org_openlive_android_rtmp_RtmpClient.c
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
 LOCAL_CFLAGS := -Wall -O2 -DSYS=posix -DNO_CRYPTO

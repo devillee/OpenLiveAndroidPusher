@@ -378,8 +378,9 @@ public class HWH264Encoder implements Runnable {
 
 					RtmpClient.writeVideo(outData, outData.length);
 					baseTime = System.currentTimeMillis();
-					if (VERBOSE)
-						Log.d(TAG, mBufferInfo.size + " bytes written");
+					if (VERBOSE){
+						//Log.d(TAG, mBufferInfo.size + " bytes written");
+					}
 				}
 
 				mEncoder.releaseOutputBuffer(encoderStatus, false);

@@ -39,6 +39,7 @@ public class RtmpClient {
 	}
 
 	public void disconnect() {
+		connect = -1;
 		close();
 	}
 

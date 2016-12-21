@@ -10,11 +10,15 @@
 #define TYPE_VIDEO 0
 #define TYPE_AUDIO 1
 
+#define  LOG_TAG    "librtmp"
+#define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+
 #ifndef _Included_org_openlive_android_rtmp_RtmpClient
 #define _Included_org_openlive_android_rtmp_RtmpClient
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /*
  * Class:     org_openlive_android_rtmp_RtmpClient
  * Method:    open
@@ -25,11 +29,8 @@ JNIEXPORT jint JNICALL Java_org_openlive_android_rtmp_RtmpClient_open(
 		jint width, jint height) {
 
 	const char *url = (*env)->GetStringUTFChars(env, _url, 0);
-
 	int result = rtmp_open_for_write(url, width, height);
-
 	(*env)->ReleaseStringUTFChars(env, _url, url);
-
 	return result;
 }
 
@@ -58,6 +59,7 @@ JNIEXPORT jint JNICALL Java_org_openlive_android_rtmp_RtmpClient_read(
  * Method:    write
  * Signature: ([BIII)I
  */
+
 JNIEXPORT jint JNICALL Java_org_openlive_android_rtmp_RtmpClient_write(
 		JNIEnv *env, jclass obj, jbyteArray _data, jint size, jint type,
 		jint ts) {
@@ -70,6 +72,7 @@ JNIEXPORT jint JNICALL Java_org_openlive_android_rtmp_RtmpClient_write(
 		//audio
 		result = rtmp_sender_write_audio_frame(data, size, ts, 0);
 	}
+
 	(*env)->ReleaseByteArrayElements(env, _data, data, 0);
 	return result;
 }

@@ -42,16 +42,16 @@
 #define HMAC_finish(ctx, dig, dlen)	dlen = SHA256_DIGEST_LENGTH; sha2_hmac_finish(&ctx, dig)
 #define HMAC_close(ctx)
 #elif defined(USE_GNUTLS)
-#include <gnutls/gnutls.h>
-#include <gcrypt.h>
+#include <nettle/hmac.h>
 #ifndef SHA256_DIGEST_LENGTH
 #define SHA256_DIGEST_LENGTH	32
 #endif
-#define HMAC_CTX	gcry_md_hd_t
-#define HMAC_setup(ctx, key, len)	gcry_md_open(&ctx, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC); gcry_md_setkey(ctx, key, len)
-#define HMAC_crunch(ctx, buf, len)	gcry_md_write(ctx, buf, len)
-#define HMAC_finish(ctx, dig, dlen)	dlen = SHA256_DIGEST_LENGTH; memcpy(dig, gcry_md_read(ctx, 0), dlen)
-#define HMAC_close(ctx)	gcry_md_close(ctx)
+#undef HMAC_CTX
+#define HMAC_CTX	struct hmac_sha256_ctx
+#define HMAC_setup(ctx, key, len)	hmac_sha256_set_key(&ctx, len, key)
+#define HMAC_crunch(ctx, buf, len)	hmac_sha256_update(&ctx, len, buf)
+#define HMAC_finish(ctx, dig, dlen)	dlen = SHA256_DIGEST_LENGTH; hmac_sha256_digest(&ctx, SHA256_DIGEST_LENGTH, dig)
+#define HMAC_close(ctx)
 #else	/* USE_OPENSSL */
 #include <openssl/ssl.h>
 #include <openssl/sha.h>
@@ -66,9 +66,12 @@
 extern void RTMP_TLS_Init();
 extern TLS_CTX RTMP_TLS_ctx;
 
-#endif /* CRYPTO */
-
+#ifdef _WIN32
+#define ZLIB_WINAPI
+#endif
 #include <zlib.h>
+
+#endif /* CRYPTO */
 
 #define	AGENT	"Mozilla/5.0"
 
@@ -79,6 +82,7 @@ HTTP_get(struct HTTP_ctx *http, const char *url, HTTP_read_callback *cb)
   char *p1, *p2;
   char hbuf[256];
   int port = 80;
+  char sport[6];
 #ifdef CRYPTO
   int ssl = 0;
 #endif
@@ -86,13 +90,18 @@ HTTP_get(struct HTTP_ctx *http, const char *url, HTTP_read_callback *cb)
   int rc, i;
   int len_known;
   HTTPResult ret = HTTPRES_OK;
-  struct sockaddr_in sa;
+  //struct sockaddr_in sa;
+  struct addrinfo hints = {0}, *ai;
   RTMPSockBuf sb = {0};
 
   http->status = -1;
 
-  memset(&sa, 0, sizeof(struct sockaddr_in));
-  sa.sin_family = AF_INET;
+  //memset(&sa, 0, sizeof(struct sockaddr_in));
+  //sa.sin_family = AF_INET;
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  snprintf(sport, sizeof(sport), "%d", port);
+  sport[5] = 0;
 
   /* we only handle http here */
   if (strncasecmp(url, "http", 4))
@@ -127,28 +136,38 @@ HTTP_get(struct HTTP_ctx *http, const char *url, HTTP_read_callback *cb)
       port = atoi(p1);
     }
 
-  sa.sin_addr.s_addr = inet_addr(host);
-  if (sa.sin_addr.s_addr == INADDR_NONE)
-    {
-      struct hostent *hp = gethostbyname(host);
-      if (!hp || !hp->h_addr)
-	return HTTPRES_LOST_CONNECTION;
-      sa.sin_addr = *(struct in_addr *)hp->h_addr;
-    }
-  sa.sin_port = htons(port);
-  sb.sb_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if (sb.sb_socket == -1)
+  //sa.sin_addr.s_addr = inet_addr(host);
+  //if (sa.sin_addr.s_addr == INADDR_NONE)
+  //  {
+  //    struct hostent *hp = gethostbyname(host);
+  //    if (!hp || !hp->h_addr)
+  //    return HTTPRES_LOST_CONNECTION;
+  //    sa.sin_addr = *(struct in_addr *)hp->h_addr;
+  //  }
+  //sa.sin_port = htons(port);
+  //sb.sb_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  //if (sb.sb_socket == -1)
+  //  return HTTPRES_LOST_CONNECTION;
+  ret = getaddrinfo(host, sport, &hints, &ai);
+  if (ret != 0) {
     return HTTPRES_LOST_CONNECTION;
+  }
+  sb.sb_socket = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+  if (sb.sb_socket == -1) {
+    freeaddrinfo(ai);
+    return HTTPRES_LOST_CONNECTION;
+  }
   i =
     sprintf(sb.sb_buf,
-	    "GET %s HTTP/1.0\r\nUser-Agent: %s\r\nHost: %s\r\nReferrer: %.*s\r\n",
+	    "GET %s HTTP/1.0\r\nUser-Agent: %s\r\nHost: %s\r\nReferer: %.*s\r\n",
 	    path, AGENT, host, (int)(path - url + 1), url);
   if (http->date[0])
     i += sprintf(sb.sb_buf + i, "If-Modified-Since: %s\r\n", http->date);
   i += sprintf(sb.sb_buf + i, "\r\n");
 
-  if (connect
-      (sb.sb_socket, (struct sockaddr *)&sa, sizeof(struct sockaddr)) < 0)
+  //if (connect
+  //    (sb.sb_socket, (struct sockaddr *)&sa, sizeof(struct sockaddr)) < 0)
+  if (connect(sb.sb_socket, ai->ai_addr, ai->ai_addrlen) < 0)
     {
       ret = HTTPRES_LOST_CONNECTION;
       goto leave;
@@ -163,7 +182,7 @@ HTTP_get(struct HTTP_ctx *http, const char *url, HTTP_read_callback *cb)
 #else
       TLS_client(RTMP_TLS_ctx, sb.sb_ssl);
       TLS_setfd(sb.sb_ssl, sb.sb_socket);
-      if ((i = TLS_connect(sb.sb_ssl)) < 0)
+      if (TLS_connect(sb.sb_ssl) < 0)
 	{
 	  RTMP_Log(RTMP_LOGERROR, "%s, TLS_Connect failed", __FUNCTION__);
 	  ret = HTTPRES_LOST_CONNECTION;
@@ -279,6 +298,7 @@ HTTP_get(struct HTTP_ctx *http, const char *url, HTTP_read_callback *cb)
 
 leave:
   RTMPSockBuf_Close(&sb);
+    freeaddrinfo(ai);
   return ret;
 }
 
@@ -435,7 +455,7 @@ make_unix_time(char *s)
 /* Convert a Unix time to a network time string
  * Weekday, DD-MMM-YYYY HH:MM:SS GMT
  */
-void
+static void
 strtime(time_t * t, char *s)
 {
   struct tm *tm;
@@ -466,7 +486,7 @@ RTMP_HashSWF(const char *url, unsigned int *size, unsigned char *hash,
 
   date[0] = '\0';
 #ifdef _WIN32
-#ifdef _XBOX
+#ifdef XBMC4XBOX
   hpre.av_val = "Q:";
   hpre.av_len = 2;
   home.av_val = "\\UserData";

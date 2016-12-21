@@ -33,7 +33,6 @@ static const AVal av_record = AVC("record");
 RTMP *rtmp;
 
 static FILE *g_file_handle = NULL;
-static uint64_t g_time_begin;
 
 bool video_config_ok = false;
 bool audio_config_ok = false;
@@ -210,7 +209,9 @@ int rtmp_open_for_write(const char *url, uint32_t video_width,
 
 		memcpy(send_buffer + offset, buffer, body_len);
 		start_time = RTMP_GetTime();
-		return RTMP_Write(rtmp, send_buffer, output_len);
+		if(rtmp_is_connected()){
+			return RTMP_Write(rtmp, send_buffer, output_len);
+		}
 	}
 	return -1;
 }
@@ -221,6 +222,7 @@ int rtmp_close() {
 		RTMP_Free(rtmp);
 		rtmp = NULL;
 	}
+	return 0;
 }
 
 int rtmp_is_connected() {
@@ -248,7 +250,7 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		uint32_t abs_ts) {
 	int val = 0;
 	//uint32_t audio_ts = (uint32_t) dts_us;
-	uint32_t audio_ts =  RTMP_GetTime() - start_time;
+	uint32_t audio_ts = RTMP_GetTime() - start_time;
 	uint32_t offset;
 	uint32_t body_len;
 	uint32_t output_len;
@@ -282,10 +284,8 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = 0x00; //aac sequence header
 
 		//flv VideoTagBody --AudioSpecificConfig
-		//    uint8_t audio_object_type = rtmp_xiecc->config.audio_object_type;
-		output[offset++] = data[0]; //(audio_object_type << 3)|(rtmp_xiecc->config.sample_frequency_index >> 1);
-		output[offset++] = data[1]; //((rtmp_xiecc->config.sample_frequency_index & 0x01) << 7) \
-                           //| (rtmp_xiecc->config.channel_configuration << 3) ;
+		output[offset++] = data[0];
+		output[offset++] = data[1];
 		//no need to set pre_tag_size
 
 		uint32_t fff = body_len + FLV_TAG_HEAD_LEN;
@@ -293,7 +293,8 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = (uint8_t)(fff >> 16); //data len
 		output[offset++] = (uint8_t)(fff >> 8); //data len
 		output[offset++] = (uint8_t)(fff); //data len
-		val = RTMP_Write(rtmp, output, output_len);
+		if (rtmp_is_connected())
+			val = RTMP_Write(rtmp, output, output_len);
 		free(output);
 		//rtmp_xiecc->audio_config_ok = 1;
 		audio_config_ok = true;
@@ -327,7 +328,8 @@ int rtmp_sender_write_audio_frame(uint8_t *data, int size, uint64_t dts_us,
 		output[offset++] = (uint8_t)(fff >> 16); //data len
 		output[offset++] = (uint8_t)(fff >> 8); //data len
 		output[offset++] = (uint8_t)(fff); //data len
-		val = RTMP_Write(rtmp, output, output_len);
+		if (rtmp_is_connected())
+			val = RTMP_Write(rtmp, output, output_len);
 		free(output);
 	}
 	return (val > 0) ? 0 : -1;
@@ -497,7 +499,8 @@ int rtmp_sender_write_video_frame(uint8_t *data, int size, uint64_t dts_us,
 		if (g_file_handle) {
 			fwrite(output, output_len, 1, g_file_handle);
 		}
-		val = RTMP_Write(rtmp, output, output_len);
+		if (rtmp_is_connected())
+			val = RTMP_Write(rtmp, output, output_len);
 		//RTMP Send out
 		free(output);
 		video_config_ok = true;
@@ -547,11 +550,12 @@ int rtmp_sender_write_video_frame(uint8_t *data, int size, uint64_t dts_us,
 		if (g_file_handle) {
 			fwrite(output, output_len, 1, g_file_handle);
 		}
-		val = RTMP_Write(rtmp, output, output_len);
+		if (rtmp_is_connected())
+			val = RTMP_Write(rtmp, output, output_len);
 		//RTMP Send out
 		free(output);
 	} else if ((nal[0] & 0x1f) == 0x01) { // itcan be 21,41,61
-		LOGD("NAL P frame");
+		//LOGD("NAL P frame");
 		body_len = nal_len + 5 + 4; //flv VideoTagHeader +  NALU length
 		output_len = body_len + FLV_TAG_HEAD_LEN + FLV_PRE_TAG_LEN;
 		output = malloc(output_len);
@@ -596,8 +600,8 @@ int rtmp_sender_write_video_frame(uint8_t *data, int size, uint64_t dts_us,
 		if (g_file_handle) {
 			fwrite(output, output_len, 1, g_file_handle);
 		}
-
-		val = RTMP_Write(rtmp, output, output_len);
+		if (rtmp_is_connected())
+			val = RTMP_Write(rtmp, output, output_len);
 
 		//RTMP Send out
 		free(output);

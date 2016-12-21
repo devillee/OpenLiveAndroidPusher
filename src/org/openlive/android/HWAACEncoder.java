@@ -144,7 +144,7 @@ public class HWAACEncoder implements Runnable {
 				ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
 				byte[] outData = new byte[bufferInfo.size];
 				outputBuffer.get(outData);
-				Log.e(TAG, outData.length + " bytes written");
+				//Log.e(TAG, outData.length + " bytes written");
 				RtmpClient.writeAudio(outData, outData.length);
 				baseTime = System.currentTimeMillis();
 				mAudioEncoder.releaseOutputBuffer(outputBufferIndex, false);
