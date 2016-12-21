@@ -25,7 +25,7 @@ public class MainActivity extends Activity implements RtmpListener {
 
 		RtmpClient.getInstance().setVideoResolution(1280, 720);
 		RtmpClient.getInstance().setRtmpHandler(new RtmpHandler(this));
-		RtmpClient.getInstance().startPublish("rtmp://localhost:1935/hls/test");
+		RtmpClient.getInstance().startPublish("rtmp://112.74.98.168:1935/hls/test");
 
 		videoEncoder = new HWH264Encoder();
 		videoEncoder.startEncoder();
@@ -56,12 +56,16 @@ public class MainActivity extends Activity implements RtmpListener {
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		
+		RtmpClient.getInstance().stopPublish();
+		
 		if (videoEncoder != null) {
 			videoEncoder.stopEncoder();
 		}
 		if (audioEncoder != null) {
 			audioEncoder.stopEncoder();
 		}
+		
 	}
 
 	@Override
