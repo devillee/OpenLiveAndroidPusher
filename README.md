@@ -3,7 +3,7 @@ Android RTMP 推流器
 
 使用 Mediacodec 硬编码 H.264以及AAC 音视频，通过simplertmp推到 rtmp server
 
-参考 https://github.com/begeekmyfriend/yasea的flv封装以及rtmp部分
+参考 https://github.com/begeekmyfriend/yasea  的flv封装以及rtmp部分
 
 link https://github.com/faucamp/SimpleRtmp
 
