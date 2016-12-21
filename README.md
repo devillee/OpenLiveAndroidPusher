@@ -1,9 +1,16 @@
 # OpenLiveAndroidPusher
 Android RTMP 推流器
 
-使用 Mediacodec 硬编码 H.264以及AAC 音视频，通过librtmp jni的方式推到nginx rtmp server
+使用 Mediacodec 硬编码 H.264以及AAC 音视频，通过simplertmp推到 rtmp server
 
-代码参考了很多的开源例子，本例子代码全部开源包括jni代码
+参考 https://github.com/begeekmyfriend/yasea的flv封装以及rtmp部分
+
+link https://github.com/faucamp/SimpleRtmp
+
+采用opengl 硬编码码流获取方式
+
+将yasea项目中有关rtmp的部分单独玻璃封装，方便扩展
+
 
 QQ群： 185829300
 欢迎互相学习进步
