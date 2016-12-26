@@ -173,7 +173,6 @@ public class HWH264Encoder implements Runnable {
 		choosePreviewSize(parms, encWidth, encHeight);
 		// leave the frame rate set to default
 		mCamera.setParameters(parms);
-
 		Camera.Size size = parms.getPreviewSize();
 		Log.d(TAG, "Camera preview size is " + size.width + "x" + size.height);
 	}
